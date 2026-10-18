@@ -5,7 +5,11 @@ const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+
+// Allow file uploads up to 10MB through Socket.io
+const io = new Server(server, {
+  maxHttpBufferSize: 1e7 // 10 MB
+});
 
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, 'public')));
@@ -29,7 +33,7 @@ io.on('connection', (socket) => {
     });
   });
 
-  // Handle chat messages
+  // Handle chat text messages
   socket.on('chatMessage', (text) => {
     const username = users.get(socket.id) || 'Anonymous';
     const trimmedText = (text || '').trim();
@@ -38,6 +42,20 @@ io.on('connection', (socket) => {
     io.emit('chatMessage', {
       user: username,
       text: trimmedText,
+      time: getCurrentTime()
+    });
+  });
+
+  // Handle file & image messages
+  socket.on('fileMessage', (data) => {
+    const username = users.get(socket.id) || 'Anonymous';
+    if (!data || !data.fileData) return;
+
+    io.emit('fileMessage', {
+      user: username,
+      fileName: data.fileName || 'file',
+      fileType: data.fileType || '',
+      fileData: data.fileData, // base64 data URI
       time: getCurrentTime()
     });
   });
